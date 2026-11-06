@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Course d’orientation – Saisie</title>
+<style>
+:root{
+  --fond:#f2f5f2; --papier:#ffffff; --encre:#17201b; --doux:#5d6b62;
+  --foret:#1f4d3a; --balise:#e8590c; --ligne:#cdd8d0; --ok:#1e7a3c; --err:#b3261e;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--fond);color:var(--encre);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:18px;line-height:1.4}
+main{max-width:560px;margin:0 auto;padding:16px 16px 48px}
+h1{font-size:1.25rem;margin:0 0 16px;color:var(--foret)}
+h2{font-size:1.1rem;margin:0 0 12px}
+button,input{font:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--balise);outline-offset:2px}
+
+/* Choix de la classe */
+.classes{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:12px}
+.classes button{padding:28px 0;font-size:1.6rem;font-weight:700;color:var(--foret);
+  background:var(--papier);border:2px solid var(--foret);border-radius:10px}
+.classes button:active{background:var(--foret);color:#fff}
+
+/* Bandeau classe */
+.bandeau{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;
+  padding:10px 14px;background:var(--foret);color:#fff;border-radius:10px}
+.bandeau strong{font-size:1.5rem}
+.bandeau button{padding:8px 14px;color:#fff;background:transparent;border:1px solid #ffffff99;border-radius:8px}
+
+/* Formulaire */
+form{background:var(--papier);border:1px solid var(--ligne);border-radius:10px;padding:16px}
+label,.lbl{display:block;margin:16px 0 6px;font-weight:600}
+label:first-child{margin-top:0}
+.aide{font-weight:400;color:var(--doux);font-size:.9rem}
+input[type=text]{width:100%;padding:14px;border:2px solid var(--ligne);border-radius:8px;background:#fff;color:var(--encre)}
+input[type=text]:focus{border-color:var(--foret)}
+.indice{min-height:1.4em;margin:6px 0 0;font-size:.9rem;color:var(--doux)}
+.deux{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* Choix du parcours : l’élément fort de l’écran */
+.parcours{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.parcours button{padding:20px 0;font-size:1.2rem;font-weight:700;color:var(--balise);
+  background:#fff;border:3px solid var(--balise);border-radius:10px}
+.parcours button.on{color:#fff;background:var(--balise)}
+
+#pct{min-height:1.4em;margin:6px 0 0;font-weight:600;color:var(--foret)}
+#envoyer{width:100%;margin-top:24px;padding:18px;font-size:1.15rem;font-weight:700;
+  color:#fff;background:var(--foret);border:0;border-radius:10px}
+#envoyer:disabled{opacity:.6}
+#msg{margin:16px 0 0;padding:0;font-weight:600}
+#msg.ok{color:var(--ok)} #msg.err{color:var(--err)}
+</style>
+</head>
+<body>
+<main>
+  <h1>Course d’orientation</h1>
+
+  <!-- Étape 1 : la classe, demandée une seule fois -->
+  <section id="ecranClasse">
+    <h2>Quelle classe ?</h2>
+    <div class="classes" id="grilleClasses"></div>
+  </section>
+
+  <!-- Étape 2 : saisie des élèves -->
+  <section id="ecranSaisie" hidden>
+    <div class="bandeau">
+      <span>Classe <strong id="badge"></strong></span>
+      <button type="button" id="changer">Changer de classe</button>
+    </div>
+
+    <form id="formulaire" novalidate autocomplete="off">
+      <label for="pseudo">Pseudo de l’élève</label>
+      <input type="text" id="pseudo" list="liste" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <datalist id="liste"></datalist>
+      <p class="indice" id="indice"></p>
+
+      <span class="lbl">Parcours à saisir</span>
+      <div class="parcours" id="seg">
+        <button type="button" data-p="1">Parcours 1</button>
+        <button type="button" data-p="2">Parcours 2</button>
+      </div>
+
+      <label for="pts">Parcours choisi à combien de points <span class="aide">(0 à 20)</span></label>
+      <input type="text" id="pts" inputmode="numeric">
+
+      <div class="deux">
+        <div>
+          <label for="nb">Balises sur le parcours</label>
+          <input type="text" id="nb" inputmode="numeric">
+        </div>
+        <div>
+          <label for="ok">Balises correctes</label>
+          <input type="text" id="ok" inputmode="numeric">
+        </div>
+      </div>
+      <p id="pct"></p>
+
+      <label for="sec">Note sécurité <span class="aide">(temps respecté / parcours annoncé, sur 5)</span></label>
+      <input type="text" id="sec" inputmode="decimal">
+
+      <button type="submit" id="envoyer">Enregistrer</button>
+      <p id="msg" role="status"></p>
+    </form>
+  </section>
+</main>
+
+<script>
+// ▼▼▼ Colle ici l’URL de l’application web Apps Script (celle qui finit par /exec) ▼▼▼
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbytQCNXYozMwoMtMgQBpuUYF4d0AtYhGLsCf94gr9on3fED7AndfBq2VoJxBrAMILm6/exec";
+// ▲▲▲
+
+const CLASSES = ["5A", "5B", "5C", "5D", "5E"];
+const $ = (id) => document.getElementById(id);
+const nombre = (v) => parseFloat(String(v).replace(",", "."));
+const echapper = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+let classe = sessionStorage.getItem("classe") || "";
+let parcours = 0;
+let eleves = [];
+
+/* ---------- Envoi au script ---------- */
+async function api(donnees) {
+  if (SCRIPT_URL.indexOf("COLLE_ICI") === 0) {
+    throw new Error("l’URL du script n’est pas renseignée dans le fichier HTML.");
+  }
+  // Pas d’en-tête Content-Type personnalisé : évite la requête de pré-vérification (CORS)
+  const reponse = await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify(donnees) });
+  const j = await reponse.json();
+  if (!j.ok) throw new Error(j.error || "erreur inconnue");
+  return j;
+}
+
+/* ---------- Classe ---------- */
+$("grilleClasses").innerHTML = CLASSES.map((c) => `<button type="button" data-c="${c}">${c}</button>`).join("");
+$("grilleClasses").addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (b) choisirClasse(b.dataset.c);
+});
+$("changer").addEventListener("click", () => {
+  classe = "";
+  sessionStorage.removeItem("classe");
+  afficher();
+});
+
+function choisirClasse(c) {
+  classe = c;
+  sessionStorage.setItem("classe", c);
+  eleves = [];
+  msg("");
+  afficher();
+  chargerEleves();
+}
+
+function afficher() {
+  $("ecranClasse").hidden = !!classe;
+  $("ecranSaisie").hidden = !classe;
+  $("badge").textContent = classe;
+  if (classe) $("pseudo").focus();
+}
+
+/* ---------- Élèves déjà saisis (liste de suggestions) ---------- */
+async function chargerEleves() {
+  try {
+    eleves = (await api({ action: "pseudos", classe })).eleves;
+  } catch (e) { /* la saisie reste possible sans la liste */ }
+  majListe();
+}
+
+function majListe() {
+  $("liste").innerHTML = eleves.map((e) => `<option value="${echapper(e.pseudo)}">`).join("");
+  indice();
+}
+
+function trouver() {
+  const v = $("pseudo").value.trim().toLowerCase();
+  return v ? eleves.find((e) => e.pseudo.toLowerCase() === v) : undefined;
+}
+
+function indice() {
+  const v = $("pseudo").value.trim();
+  const e = trouver();
+  $("indice").textContent = !v ? "" : e
+    ? `Déjà dans la feuille – parcours 1 : ${e.p1 ? "✓ saisi" : "à saisir"}, parcours 2 : ${e.p2 ? "✓ saisi" : "à saisir"}`
+    : "Nouvel élève";
+}
+
+/* ---------- Formulaire ---------- */
+$("pseudo").addEventListener("input", indice);
+
+$("seg").addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  parcours = Number(b.dataset.p);
+  document.querySelectorAll("#seg button").forEach((x) => x.classList.toggle("on", x === b));
+});
+
+function justesse() {
+  const nb = nombre($("nb").value), ok = nombre($("ok").value);
+  $("pct").textContent = nb > 0 && ok >= 0 ? `Justesse : ${Math.round((ok / nb) * 100)} %` : "";
+}
+$("nb").addEventListener("input", justesse);
+$("ok").addEventListener("input", justesse);
+
+function msg(texte, type) {
+  $("msg").textContent = texte;
+  $("msg").className = type || "";
+}
+
+function verifier(d) {
+  if (!d.pseudo) return "Saisis le pseudo de l’élève.";
+  if (!d.parcours) return "Précise s’il s’agit du parcours 1 ou du parcours 2.";
+  if (!(d.pts >= 0 && d.pts <= 20)) return "Les points du parcours doivent être compris entre 0 et 20.";
+  if (!(Number.isInteger(d.nb) && d.nb > 0)) return "Indique le nombre de balises du parcours.";
+  if (!(Number.isInteger(d.ok) && d.ok >= 0 && d.ok <= d.nb)) return `Les balises correctes doivent être comprises entre 0 et ${d.nb}.`;
+  if (!(d.sec >= 0 && d.sec <= 5)) return "La note de sécurité doit être comprise entre 0 et 5.";
+  return "";
+}
+
+$("formulaire").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  msg("");
+  const d = {
+    action: "save",
+    classe,
+    pseudo: $("pseudo").value.trim(),
+    parcours,
+    pts: nombre($("pts").value),
+    nb: nombre($("nb").value),
+    ok: nombre($("ok").value),
+    sec: nombre($("sec").value)
+  };
+  const erreur = verifier(d);
+  if (erreur) return msg(erreur, "err");
+
+  const existant = trouver();
+  if (existant && existant["p" + parcours] &&
+      !confirm(`Le parcours ${parcours} de ${existant.pseudo} est déjà saisi. Le remplacer ?`)) return;
+
+  const bouton = $("envoyer");
+  bouton.disabled = true;
+  bouton.textContent = "Envoi en cours…";
+  try {
+    const j = await api(d);
+    const note = String(j.note).replace(".", ",");
+    msg(`✅ ${d.pseudo} : parcours ${d.parcours} ${j.ecrase ? "remplacé" : "enregistré"}. Note actuelle : ${note} / 20`, "ok");
+
+    let e = trouver();
+    if (!e) { e = { pseudo: d.pseudo, p1: false, p2: false }; eleves.push(e); }
+    e["p" + d.parcours] = true;
+
+    // Prêt pour l’élève suivant (le parcours est à préciser à chaque fois)
+    $("formulaire").reset();
+    parcours = 0;
+    document.querySelectorAll("#seg button").forEach((x) => x.classList.remove("on"));
+    $("pct").textContent = "";
+    majListe();
+    $("pseudo").focus();
+  } catch (e) {
+    msg("Échec de l’enregistrement : " + e.message, "err");
+  } finally {
+    bouton.disabled = false;
+    bouton.textContent = "Enregistrer";
+  }
+});
+
+/* ---------- Démarrage ---------- */
+afficher();
+if (classe) chargerEleves();
+</script>
+</body>
+</html>
