@@ -122,6 +122,7 @@ const echapper = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;"
 let classe = sessionStorage.getItem("classe") || "";
 let parcours = 0;
 let eleves = [];
+let chargePour = ""; // « pseudo|parcours » dont les valeurs existantes ont été chargées
 
 /* ---------- Envoi au script ---------- */
 async function api(donnees) {
@@ -190,13 +191,38 @@ function indice() {
 }
 
 /* ---------- Formulaire ---------- */
-$("pseudo").addEventListener("input", indice);
+const cleCourante = () => {
+  const e = trouver();
+  return e && parcours ? e.pseudo.toLowerCase() + "|" + parcours : "";
+};
+
+// Si l’élève a déjà ce parcours dans la feuille, on recharge ses valeurs pour les corriger
+async function prerremplir() {
+  const cle = cleCourante();
+  if (!cle || cle === chargePour || !trouver()["p" + parcours]) return;
+  try {
+    const j = await api({ action: "lire", classe, pseudo: trouver().pseudo, parcours });
+    if (!j.trouve || cle !== cleCourante()) return; // l’utilisateur a changé entre-temps
+    const v = j.valeurs;
+    const txt = (x) => (x === "" ? "" : String(x).replace(".", ","));
+    $("pts").value = txt(v.pts);
+    $("nb").value = txt(v.nb);
+    $("ok").value = txt(v.ok);
+    $("sec").value = txt(v.sec);
+    chargePour = cle;
+    justesse();
+    msg("Valeurs déjà saisies chargées : corrige ce qui est faux, puis enregistre.", "");
+  } catch (e) { /* la saisie reste possible */ }
+}
+
+$("pseudo").addEventListener("input", () => { indice(); prerremplir(); });
 
 $("seg").addEventListener("click", (e) => {
   const b = e.target.closest("button");
   if (!b) return;
   parcours = Number(b.dataset.p);
   document.querySelectorAll("#seg button").forEach((x) => x.classList.toggle("on", x === b));
+  prerremplir();
 });
 
 function justesse() {
@@ -238,7 +264,7 @@ $("formulaire").addEventListener("submit", async (ev) => {
   if (erreur) return msg(erreur, "err");
 
   const existant = trouver();
-  if (existant && existant["p" + parcours] &&
+  if (existant && existant["p" + parcours] && chargePour !== cleCourante() &&
       !confirm(`Le parcours ${parcours} de ${existant.pseudo} est déjà saisi. Le remplacer ?`)) return;
 
   const bouton = $("envoyer");
@@ -256,6 +282,7 @@ $("formulaire").addEventListener("submit", async (ev) => {
     // Prêt pour l’élève suivant (le parcours est à préciser à chaque fois)
     $("formulaire").reset();
     parcours = 0;
+    chargePour = "";
     document.querySelectorAll("#seg button").forEach((x) => x.classList.remove("on"));
     $("pct").textContent = "";
     majListe();
